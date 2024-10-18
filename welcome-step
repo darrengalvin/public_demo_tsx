@@ -1,0 +1,120 @@
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { db } from '../../../firebaseConfig/firebaseClient';
+import { doc, setDoc, updateDoc, serverTimestamp, collection } from "firebase/firestore";
+import { BusinessTeamEventsStepProps } from '../types/businessTeamEvents';
+
+const WelcomeStep: React.FC<BusinessTeamEventsStepProps> = ({
+  businessInfo,
+  selections,
+  setSelections,
+  onComplete,
+  currentStep,
+  totalSteps,
+  documentId,
+  setDocumentId
+}) => {
+  const [isClient, setIsClient] = useState(false);
+  const [name, setName] = useState(selections.name || "");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    setName(selections.name || "");
+  }, [selections.name]);
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setName(e.target.value);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      if (!documentId) {
+        const newDocRef = doc(collection(db, 'websiteLeads'));
+        await setDoc(newDocRef, {
+          businessInfo,
+          selections: { ...selections, name: name },
+          currentStep: currentStep + 1,
+          dateCreated: serverTimestamp(),
+        });
+        setDocumentId(newDocRef.id);
+        console.log("Created new document with ID:", newDocRef.id);
+      } else {
+        const docRef = doc(db, 'websiteLeads', documentId);
+        await updateDoc(docRef, { 
+          'selections.name': name,
+          currentStep: currentStep + 1,
+        });
+        console.log("Updated existing document with ID:", documentId);
+      }
+      
+      setSelections(prev => ({ ...prev, name: name }));
+      onComplete();
+    } catch (err) {
+      console.error("Error handling submit:", err);
+      setError("An error occurred. Please try again.");
+    }
+  };
+
+  if (!isClient) {
+    return null;
+  }
+
+  return (
+    <div className="relative h-screen w-full overflow-hidden">
+      <div className="absolute inset-0 w-full h-full">
+        <div style={{height: '100%', width: '100%'}}>
+          <iframe 
+            src="https://fast.wistia.net/embed/iframe/h5c6yeti0z?videoFoam=true&autoPlay=true&silentAutoPlay=true&background=true&loop=true"
+            title="Wistia video player" 
+            allow="autoplay; fullscreen" 
+            allowTransparency={true} 
+            frameBorder="0" 
+            scrolling="no" 
+            className="w-full h-full" 
+            style={{position: 'absolute', top: 0, left: 0}}
+          ></iframe>
+        </div>
+      </div>
+
+      <div className="absolute inset-0 flex items-end sm:items-center justify-center p-4">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="bg-white bg-opacity-80 rounded-t-lg p-6 max-w-lg w-full text-center shadow-lg"
+        >
+          <h1 className="text-4xl font-bold text-[#54137c] mb-2">Welcome{name ? `, ${name}` : ''}!</h1>
+          <p className="text-xl text-gray-600 mb-8">We&apos;re excited to help you create an unforgettable team-building experience!</p>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <input
+              type="text"
+              name="name"
+              value={name}
+              onChange={handleNameChange}
+              placeholder="What is your name?"
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-[#fabf18] focus:border-[#fabf18] text-gray-800"
+              required
+            />
+            {error && <p className="text-red-500">{error}</p>}
+            <motion.button
+              type="submit"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-full bg-[#fabf18] hover:bg-[#e5ad15] text-white font-bold py-2 px-4 rounded"
+            >
+              {name ? 'Continue' : 'Get Started'}
+            </motion.button>
+          </form>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+export default WelcomeStep;
