@@ -1,126 +1,120 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CommonProps } from '../types/businessTeamEvents';
-
-import { doc, updateDoc } from "firebase/firestore"; // Ensure these are imported
 import { db } from '../../../firebaseConfig/firebaseClient';
-import Link from 'next/link';
+import { doc, setDoc, updateDoc, serverTimestamp, collection } from "firebase/firestore";
+import { BusinessTeamEventsStepProps } from '../types/businessTeamEvents';
 
-interface AdditionalDetailsFormProps extends CommonProps {
-  documentId: string | null;
-  webhookUrl?: string;
-}
-
-const AdditionalDetailsForm: React.FC<AdditionalDetailsFormProps> = ({
+const WelcomeStep: React.FC<BusinessTeamEventsStepProps> = ({
+  businessInfo,
   selections,
   setSelections,
   onComplete,
-  onPrevious,
   currentStep,
   totalSteps,
   documentId,
-  webhookUrl
+  setDocumentId
 }) => {
-  const [additionalDetails, setAdditionalDetails] = useState(selections.additionalDetails || '');
-  const [budget, setBudget] = useState(selections.budget || '');
+  const [isClient, setIsClient] = useState(false);
+  const [name, setName] = useState(selections.name || "");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    setName(selections.name || "");
+  }, [selections.name]);
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setName(e.target.value);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Remove consent check
-    const updatedSelections = {
-      ...selections,
-      additionalDetails,
-      budget,
-    };
-    setSelections(updatedSelections);
-
-    if (documentId) {
-      try {
+    setError(null);
+    try {
+      if (!documentId) {
+        const newDocRef = doc(collection(db, 'websiteLeads'));
+        await setDoc(newDocRef, {
+          businessInfo,
+          selections: { ...selections, name: name },
+          currentStep: currentStep + 1,
+          dateCreated: serverTimestamp(),
+        });
+        setDocumentId(newDocRef.id);
+        console.log("Created new document with ID:", newDocRef.id);
+      } else {
         const docRef = doc(db, 'websiteLeads', documentId);
-        await updateDoc(docRef, updatedSelections);
-        console.log("Additional details successfully updated");
-      } catch (error) {
-        console.error("Error updating additional details:", error);
+        await updateDoc(docRef, { 
+          'selections.name': name,
+          currentStep: currentStep + 1,
+        });
+        console.log("Updated existing document with ID:", documentId);
       }
-    }
-
-    if (onComplete) {
+      
+      setSelections(prev => ({ ...prev, name: name }));
       onComplete();
+    } catch (err) {
+      console.error("Error handling submit:", err);
+      setError("An error occurred. Please try again.");
     }
   };
 
+  if (!isClient) {
+    return null;
+  }
+
   return (
-    <div className="bg-gray-100 rounded-lg shadow-xl p-8 max-w-2xl mx-auto">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-      >
-        <h2 className="text-3xl font-bold text-gray-800 mb-6">Final Details</h2>
-        <p className="text-xl text-gray-600 mb-8">
-          Let&apos;s wrap up with a few last details to help us plan the perfect experience for you and your team.
-        </p>
+    <div className="relative h-screen w-full overflow-hidden">
+      <div className="absolute inset-0 w-full h-full">
+        <div style={{height: '100%', width: '100%'}}>
+          <iframe 
+            src="https://fast.wistia.net/embed/iframe/h5c6yeti0z?videoFoam=true&autoPlay=true&silentAutoPlay=true&background=true&loop=true"
+            title="Wistia video player" 
+            allow="autoplay; fullscreen" 
+            allowTransparency={true} 
+            frameBorder="0" 
+            scrolling="no" 
+            className="w-full h-full" 
+            style={{position: 'absolute', top: 0, left: 0}}
+          ></iframe>
+        </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="additionalDetails" className="block text-sm font-medium text-gray-700 mb-1">
-              Additional Details
-            </label>
-            <textarea
-              id="additionalDetails"
-              value={additionalDetails}
-              onChange={(e) => setAdditionalDetails(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-300 focus:border-blue-300 bg-white text-gray-800 h-40"
-              placeholder="Share any additional details, preferences, or special requirements here..."
-            />
-          </div>
-
-          <div>
-            <label htmlFor="budget" className="block text-sm font-medium text-gray-700 mb-1">
-              Budget (if any)
-            </label>
+      <div className="absolute inset-0 flex items-end sm:items-center justify-center p-4">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="bg-white bg-opacity-80 rounded-t-lg p-6 max-w-lg w-full text-center shadow-lg"
+        >
+          <h1 className="text-4xl font-bold text-[#54137c] mb-2">Welcome{name ? `, ${name}` : ''}!</h1>
+          <p className="text-xl text-gray-600 mb-8">We&apos;re excited to help you create an unforgettable team-building experience!</p>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <input
               type="text"
-              id="budget"
-              value={budget}
-              onChange={(e) => setBudget(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-300 focus:border-blue-300 bg-white text-gray-800"
-              placeholder="Optional: Enter your budget to help us tailor activities accordingly"
+              name="name"
+              value={name}
+              onChange={handleNameChange}
+              placeholder="What is your name?"
+              className="w-full p-2 border rounded-md focus:ring-2 focus:ring-[#fabf18] focus:border-[#fabf18] text-gray-800"
+              required
             />
-          </div>
-
-          <p className="text-sm text-gray-600">
-            By submitting this form, you agree to our{' '}
-            <Link href="https://www.newforestactivities.co.uk/privacy-policy" className="text-blue-600 hover:underline">
-              Privacy Policy
-            </Link>
-            .
-          </p>
-
-          <div className="flex justify-between items-center">
-            {onPrevious && (
-              <button
-                type="button"
-                onClick={onPrevious}
-                className="px-6 py-2 bg-gray-300 text-gray-800 rounded-full hover:bg-gray-400 transition-colors"
-              >
-                Previous
-              </button>
-            )}
+            {error && <p className="text-red-500">{error}</p>}
             <motion.button
               type="submit"
-              className="px-8 py-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-full bg-[#fabf18] hover:bg-[#e5ad15] text-white font-bold py-2 px-4 rounded"
             >
-              Next
+              {name ? 'Continue' : 'Get Started'}
             </motion.button>
-          </div>
-        </form>
-      </motion.div>
-      <p className="text-sm text-gray-600 text-center mt-6">
-        Step {currentStep} of {totalSteps}
-      </p>
+          </form>
+        </motion.div>
+      </div>
     </div>
   );
 };
 
-export default AdditionalDetailsForm;
+export default WelcomeStep;
