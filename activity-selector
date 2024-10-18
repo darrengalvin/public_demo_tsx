@@ -1,0 +1,195 @@
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Globe, Phone, Mail, CheckCircle } from 'lucide-react';
+import Link from 'next/link';
+import { Selection } from '../../../types/types';
+
+interface ActivitySelectorProps {
+  selections: Selection;
+  setSelections: React.Dispatch<React.SetStateAction<Selection>>;
+  businessInfo: Record<string, unknown>;
+  currentStep: number;
+  totalSteps: number;
+  onComplete: () => void;
+  onPrevious: () => void;
+  documentId: string | null;
+}
+
+const ActivitySelector: React.FC<ActivitySelectorProps> = ({
+  selections,
+  setSelections,
+  businessInfo: _businessInfo,
+  currentStep,
+  totalSteps,
+  onComplete,
+  onPrevious,
+  documentId: _documentId,
+}) => {
+  const [email, setEmail] = useState('');
+  const [website, setWebsite] = useState('');
+  const [phone, setPhone] = useState('');
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [consentGiven, setConsentGiven] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const contactInfo = `${name} (${email})`;
+    setSelections(prev => ({
+      ...prev,
+      activities: [contactInfo],
+    }));
+    if (selections.webhookUrl) {
+      try {
+        await fetch(selections.webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: 'New activity selection',
+            selection: contactInfo,
+          }),
+        });
+      } catch (error) {
+        console.error('Error sending webhook:', error);
+      }
+    }
+    onComplete();
+  };
+
+  if (isSubmitted) {
+    return (
+      <div className="bg-gray-100 rounded-lg shadow-xl p-8 max-w-2xl mx-auto text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
+          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+          <h2 className="text-3xl font-bold text-gray-800 mb-4">Thank You!</h2>
+          <p className="text-xl text-gray-600">
+            One of our team will be in touch shortly. Please check your email for further information.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-100 rounded-lg shadow-xl p-8 max-w-2xl mx-auto overflow-y-auto max-h-[80vh]">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
+      >
+        <h2 className="text-3xl font-bold text-gray-800 mb-6">Your Personalised Activities Await!</h2>
+        <p className="text-xl text-gray-600 mb-8">
+          We have enough information to send you some fantastic activity suggestions. Enter your email below, and we&apos;ll deliver them straight to your inbox.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="email"
+                id="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="pl-10 w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-300 focus:border-blue-300 bg-white text-gray-800"
+                placeholder="youremail@example.com"
+              />
+            </div>
+          </div>
+
+          <div className="bg-blue-50 p-4 rounded-md border border-blue-200">
+            <h3 className="text-lg font-semibold text-blue-800 mb-2">Enhance Your Suggestions (Optional)</h3>
+            <p className="text-sm text-blue-600 mb-4">
+              Help us tailor your suggestions even further. Provide your website, and our team will learn more about your company and industry.
+            </p>
+            <div className="relative">
+              <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                id="website"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+                className="pl-10 w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-300 focus:border-blue-300 bg-white text-gray-800"
+                placeholder="www.yourcompany.com"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+              Best Contact Number (Optional)
+            </label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="tel"
+                id="phone"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="pl-10 w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-300 focus:border-blue-300 bg-white text-gray-800"
+                placeholder="+44 7123 456789"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-start mb-4">
+            <input
+              type="checkbox"
+              id="consent"
+              checked={consentGiven}
+              onChange={(e) => setConsentGiven(e.target.checked)}
+              className="mt-1 mr-2"
+            />
+            <label htmlFor="consent" className="text-sm text-gray-600">
+              I consent to the collection and use of my personal data in accordance with the Privacy Policy.
+            </label>
+          </div>
+
+          <p className="text-sm text-gray-600">
+            By submitting this form, you agree to our{' '}
+            <Link href="https://www.newforestactivities.co.uk/privacy-policy" className="text-blue-600 hover:underline">
+              Privacy Policy
+            </Link>
+            .
+          </p>
+
+          <div className="flex justify-between items-center">
+            {onPrevious && (
+              <button
+                type="button"
+                onClick={onPrevious}
+                className="px-6 py-2 bg-gray-300 text-gray-800 rounded-full hover:bg-gray-400 transition-colors"
+              >
+                Previous
+              </button>
+            )}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="submit"
+              className="flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+              disabled={!consentGiven}
+            >
+              Get Your Experience
+              <CheckCircle className="ml-2" size={20} />
+            </motion.button>
+          </div>
+        </form>
+      </motion.div>
+      <p className="text-sm text-gray-600 text-center mt-6">
+        Step {currentStep} of {totalSteps}
+      </p>
+    </div>
+  );
+};
+
+export default ActivitySelector;
